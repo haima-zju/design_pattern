@@ -16,11 +16,11 @@ import java.util.concurrent.*;
  * @version $Id: SingletonTest.java, v 0.1 2020年07月26日 6:03 PM shenchun Exp $
  */
 public class SingletonTest {
-    private static final ExecutorService executor   = new ThreadPoolExecutor(10, 100, 10, TimeUnit.SECONDS,
+    private static final ExecutorService executor   = new ThreadPoolExecutor(100, 100, 10, TimeUnit.SECONDS,
             new ArrayBlockingQueue<Runnable>(10000),
             Executors.defaultThreadFactory());
     private static final int             N          = 100;
-    private static final CountDownLatch  startLatch = new CountDownLatch(1);
+    private static final CyclicBarrier  startBarrier = new CyclicBarrier(N);
     private static final CountDownLatch  endLabtch  = new CountDownLatch(N);
     private static final Set<Long>       resultSet  = Sets.newConcurrentHashSet();
 
@@ -31,7 +31,11 @@ public class SingletonTest {
                 executor.submit(new Runnable() {
                     @Override
                     public void run() {
-                        doAWait(startLatch);
+                        try {
+                            startBarrier.await();
+                        }catch (Exception e){
+                            System.out.println(e.getMessage());
+                        }
                         //System.out.println(IdGeneratorOne.getInstance().getId());
                         resultSet.add(IdGeneratorFive.getInstance().getId());
                         endLabtch.countDown();
@@ -39,7 +43,6 @@ public class SingletonTest {
                 });
             }
             System.out.println("start");
-            startLatch.countDown();
             doAWait(endLabtch);
             assert resultSet.size() == N;
             List<Long> resultList = Lists.newArrayList(resultSet);
